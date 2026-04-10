@@ -1,0 +1,40 @@
+name: 海内外社区治理周报 自动生成
+
+on:
+  schedule:
+    - cron: '0 1 * * 1'   # 每周一 09:00 北京时间（UTC+8 = 01:00 UTC）
+  workflow_dispatch:        # 允许手动触发
+
+jobs:
+  generate-and-publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 配置 Python 环境
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 安装依赖
+        run: pip install anthropic requests
+
+      - name: 生成本周报告
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python scripts/generate_report.py
+
+      - name: 提交报告到仓库
+        run: |
+          git config user.name "Weekly Report Bot"
+          git config user.email "bot@github.com"
+          git add -A
+          git diff --staged --quiet || git commit -m "📊 自动生成周报 $(date +'%Y-%m-%d')"
+          git push
+
+      - name: 推送飞书群通知
+        env:
+          FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
+        run: python scripts/send_feishu.py
